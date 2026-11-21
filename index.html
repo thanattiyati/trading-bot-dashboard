@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trading lab · live</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root { --bg:#f9f9f7; --card:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781; --grid:#e1e0d9; --base:#c3c2b7;
+          --good:#006300; --bad:#d03b3b; --goodbg:#e7f3e7; --badbg:#fbeaea; --accent:#2a78d6; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0d0d0d; --card:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#898781; --grid:#2c2c2a; --base:#383835;
+            --good:#3fbf5f; --bad:#e66767; --goodbg:#16301c; --badbg:#3a1a1a; --accent:#3987e5; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:20px; background:var(--bg); color:var(--ink); font:15px/1.5 -apple-system, "Segoe UI", sans-serif; }
+  header { display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
+  h1 { font-size:20px; font-weight:600; margin:0; }
+  h2 { font-size:13px; font-weight:600; margin:0 0 10px; color:var(--ink2); text-transform:none; }
+  .sub { color:var(--muted); font-size:13px; }
+  .card { background:var(--card); border:1px solid var(--grid); border-radius:12px; padding:16px; min-width:0; }
+  .row { display:grid; gap:14px; margin-bottom:14px; }
+  .r-hero { grid-template-columns: minmax(260px, 1fr) 2fr; }
+  .r-2-1 { grid-template-columns: 2fr 1fr; }
+  .r-1-2 { grid-template-columns: 1fr 2fr; }
+  .r-3 { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 900px) { .r-hero, .r-2-1, .r-1-2, .r-3 { grid-template-columns: 1fr; } }
+  .big { font-size:34px; font-weight:650; font-variant-numeric: tabular-nums; line-height:1.15; }
+  .mid { font-size:18px; font-weight:600; font-variant-numeric: tabular-nums; }
+  .pos { color:var(--good); } .neg { color:var(--bad); }
+  .kv { display:flex; justify-content:space-between; gap:10px; padding:6px 0; border-bottom:1px solid var(--grid); font-size:14px; }
+  .kv:last-child { border-bottom:0; }
+  .kv span:first-child { color:var(--muted); }
+  .kv span:last-child { font-variant-numeric: tabular-nums; text-align:right; }
+  table { width:100%; border-collapse:collapse; font-variant-numeric: tabular-nums; }
+  th, td { text-align:left; padding:7px 6px; border-bottom:1px solid var(--grid); font-size:14px; }
+  th { color:var(--muted); font-weight:500; font-size:12px; }
+  .swatch { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px; vertical-align:middle; }
+  pre { margin:0; white-space:pre-wrap; font:12px/1.5 ui-monospace, Menlo, monospace; color:var(--ink2); max-height:170px; overflow:auto; }
+  .check { display:flex; gap:10px; align-items:flex-start; padding:7px 0; border-bottom:1px solid var(--grid); }
+  .check:last-child { border-bottom:0; }
+  .badge { flex:none; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; }
+  .badge.ok { background:var(--goodbg); color:var(--good); } .badge.no { background:var(--badbg); color:var(--bad); }
+  .check b { font-weight:500; font-size:14px; display:block; } .check small { color:var(--muted); font-size:12px; }
+  .alert { display:none; background:var(--badbg); color:var(--bad); border:1px solid var(--bad); border-radius:10px; padding:10px 14px; margin-bottom:14px; font-weight:500; }
+  .err { color:var(--bad); font-size:13px; }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--good); margin-right:6px; }
+  .countdown { display:inline-block; margin-top:10px; padding:3px 10px; border-radius:99px; border:1px solid var(--grid); font-size:13px; color:var(--ink2); }
+  form.friend { display:flex; gap:6px; margin-top:10px; }
+  form.friend input { min-width:0; flex:1; padding:6px 8px; border-radius:8px; border:1px solid var(--grid); background:var(--bg); color:var(--ink); font:inherit; font-size:14px; }
+  form.friend input.num { flex:0 0 90px; }
+  button { padding:6px 12px; border-radius:8px; border:1px solid var(--grid); background:var(--bg); color:var(--ink); font:inherit; font-size:14px; cursor:pointer; }
+  button.x { padding:0 6px; border:0; background:none; color:var(--muted); }
+  tr.me td { font-weight:600; }
+  .formerr { color:var(--bad); font-size:12px; min-height:16px; margin-top:4px; }
+  .chartbox { position:relative; height:240px; }
+  .chip { padding:3px 10px; border-radius:99px; border:1px solid var(--grid); font-size:13px; font-variant-numeric: tabular-nums; }
+  .chip.up { color:var(--good); background:var(--goodbg); border-color:transparent; } .chip.down { color:var(--bad); background:var(--badbg); border-color:transparent; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Trading lab · live</h1>
+  <div class="sub"><span class="dot" id="dot"></span>updated <span id="upd">…</span> · <span id="refresh">refreshes every 30 s</span> · paper money only</div>
+</header>
+<div id="alert" class="alert"></div>
+<div id="err" class="err"></div>
+
+<div class="row r-hero">
+  <div class="card">
+    <h2>🏁 Competition · Claude Paper Training</h2>
+    <div class="big" id="c-eq">…</div>
+    <div class="mid" id="c-pl"></div>
+    <div style="margin-top:12px" id="c-kv"></div>
+    <span class="countdown" id="c-cd"></span>
+  </div>
+  <div class="card"><h2>Your balance over time</h2><div class="chartbox"><canvas id="ch-comp"></canvas></div><div class="sub" id="c-hist-note"></div></div>
+</div>
+
+<div class="row r-3" id="tb-row" style="display:none">
+  <div class="card"><h2>⏱️ 4-hour trend bot · the rule</h2>
+    <div class="mid" id="tb-sig">…</div><div class="sub" id="tb-sub"></div>
+    <div style="margin-top:10px" id="tb-kv"></div></div>
+  <div class="card"><h2>🏁 It trades your competition account</h2><div class="mid" id="tb-c">…</div><div class="sub" id="tb-csub"></div></div>
+  <div class="card"><h2>🧪 Same rule on practice · $100 each</h2>
+    <div class="kv"><span>₿ Bitcoin bot</span><span id="tb-p">…</span></div><div class="sub" id="tb-psub"></div>
+    <div class="kv" style="margin-top:10px"><span>🥇 Gold bot (GLD)</span><span id="tb-g">not started</span></div><div class="sub" id="tb-gsub">US market hours only (21:30–04:00 Bangkok)</div></div>
+</div>
+
+<div class="row r-2-1">
+  <div class="card"><h2>Bitcoin · last 7 days <span class="sub">(▲ buy · ▼ sell)</span></h2><div class="chartbox"><canvas id="ch-btc"></canvas></div></div>
+  <div class="card"><h2>🛡️ Safety & health</h2><div id="health"></div></div>
+</div>
+
+<div class="row r-1-2">
+  <div class="card">
+    <h2>🏆 You vs friends</h2>
+    <table id="friends"><thead><tr><th>#</th><th>Name</th><th>Balance</th><th></th></tr></thead><tbody></tbody></table>
+    <form class="friend" id="f-form">
+      <input id="f-name" placeholder="Friend's name" maxlength="20">
+      <input id="f-bal" class="num" placeholder="$ balance" inputmode="decimal">
+      <button type="submit">Add</button>
+    </form>
+    <div class="formerr" id="f-err"></div>
+    <div class="sub">Saved only in this browser. Re-enter a name to update it.</div>
+  </div>
+  <div class="card"><h2>🧪 Shadow test · virtual $100 each</h2><div class="chartbox" style="height:270px"><canvas id="ch-shadow"></canvas></div><div class="sub" id="sh-note"></div>
+    <table id="board" style="margin-top:10px"><thead><tr><th>#</th><th>Strategy</th><th>Value</th><th>Trades</th><th>Holding</th></tr></thead><tbody></tbody></table>
+  </div>
+</div>
+
+<div class="row r-1-2">
+  <div class="card"><h2>📈 Stock memory bot · $1,000 budget <span class="sub">(practice account)</span></h2>
+    <div class="mid" id="sm-pos">…</div><div class="sub" id="sm-sub"></div>
+    <div style="margin-top:10px" id="sm-kv"></div></div>
+  <div class="card"><h2>Trend now · 20/50-day averages</h2><div id="sm-trend" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px"></div>
+    <h2>Latest lesson in its memory</h2><div class="sub" id="sm-lesson" style="font-size:13px;color:var(--ink2)"></div>
+    <h2 style="margin-top:12px">Log <span class="sub">(newest first)</span></h2><pre id="sm-log"></pre></div>
+</div>
+
+<div class="row r-1-2">
+  <div class="card"><h2>🥇 Gold bot · GLD · $1,000 budget <span class="sub">(practice account)</span></h2>
+    <div class="mid" id="g-eq">…</div><div class="sub" id="g-sub"></div>
+    <div style="margin-top:10px" id="g-kv"></div></div>
+  <div class="card"><h2>Since go-live · virtual $1,000 each</h2>
+    <table id="g-board"><thead><tr><th>Line</th><th>Value</th><th>Trades</th></tr></thead><tbody></tbody></table>
+    <div class="sub" style="margin-top:8px">Rule: daily trend + break of yesterday's high/low + 1H Heikin Ashi candle with no back wick · exit on the first opposite-colour candle · 3×ATR stop at the broker</div>
+    <h2 style="margin-top:12px">Log <span class="sub">(newest first)</span></h2><pre id="g-log"></pre></div>
+</div>
+
+<div class="row r-3">
+  <div class="card"><h2>🤖 Practice bot · $100 budget</h2><div class="mid" id="p-eq">…</div><div class="sub" id="p-sub"></div>
+    <div style="margin-top:10px" id="next"></div></div>
+  <div class="card"><h2>Practice bot log <span class="sub">(newest first)</span></h2><pre id="log-p"></pre></div>
+  <div class="card"><h2>Competition log <span class="sub">(newest first)</span></h2><pre id="log-c"></pre></div>
+</div>
+
+<script>
+const COLORS = { steady:'#2a78d6', trend7:'#eb6834', top3:'#1baf7a', hunter:'#eda100', hold_btc:'#898781' };
+const NAMES = { steady:'Steady (paused bot)', trend7:'Fast trend', top3:'Top 3 coins', hunter:'Hourly hunter (= practice)', hold_btc:'Hold BTC since 13 Nov' };
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const $ = id => document.getElementById(id);
+const usd = (v, d = 2) => v == null ? '–' : '$' + Number(v).toLocaleString(undefined, {minimumFractionDigits:d, maximumFractionDigits:d});
+const pct = v => v == null ? '–' : (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%';
+const cls = v => v >= 0 ? 'pos' : 'neg';
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const charts = {};
+let lastEquity = null;
+
+function baseOpts(fmtY) {
+  const muted = css('--muted'), grid = css('--grid');
+  return { responsive: true, maintainAspectRatio: false, animation: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${fmtY(c.parsed.y)}` } } },
+    scales: { x: { ticks: { color: muted, maxTicksLimit: innerWidth < 600 ? 3 : 7, maxRotation: 0, autoSkipPadding: 12 }, grid: { display: false } },
+              y: { ticks: { color: muted, callback: v => fmtY(v) }, grid: { color: grid } } } };
+}
+function upsert(id, cfg) {
+  if (charts[id]) { charts[id].data = cfg.data; charts[id].update(); }
+  else charts[id] = new Chart($(id), cfg);
+}
+function hourLabel(t) {  // "2026-11-13 16:58" (BKK) -> "13 Nov 16:00"
+  const m = t.match(/(\d{4})-(\d{2})-(\d{2}) (\d{2})/);
+  return m ? `${m[3]} ${MON[+m[2] - 1]} ${m[4]}:00` : null;
+}
+
+function drawCompetition(meta) {
+  const h = meta.history || [];
+  const labels = h.map(r => r[0]), vals = h.map(r => r[1]);
+  $('c-hist-note').textContent = h.length < 3 ? 'Recording every 5 minutes; the line grows as data comes in.' : '';
+  const opts = baseOpts(v => usd(v, 2));
+  opts.plugins.tooltip.callbacks.label = c => ` ${c.dataset.label}: ${usd(c.parsed.y)}`;
+  const lo = Math.min(100, ...vals), hi = Math.max(100, ...vals), pad = Math.max(0.5, (hi - lo) * 0.15);
+  opts.scales.y.suggestedMin = lo - pad; opts.scales.y.suggestedMax = hi + pad;
+  upsert('ch-comp', { type: 'line', data: { labels, datasets: [
+    { label: 'Balance', data: vals, borderColor: css('--accent'), backgroundColor: css('--accent'), borderWidth: 2, pointRadius: h.length < 3 ? 4 : 0, tension: 0.2 },
+    { label: '$100 start', data: labels.map(() => 100), borderColor: css('--base'), borderWidth: 1, borderDash: [5, 4], pointRadius: 0 } ] }, options: opts });
+}
+
+function drawBTC(btc, trades) {
+  const L = btc.labels || [];
+  const buys = L.map(() => null), sells = L.map(() => null);
+  (trades || []).filter(t => t.symbol === 'BTC/USD').forEach(t => {
+    const i = L.indexOf(hourLabel(t.time));
+    if (i >= 0) (t.side === 'BUY' ? buys : sells)[i] = t.price;
+  });
+  const ink = css('--ink');
+  const opts = baseOpts(v => usd(v, 0));
+  opts.plugins.tooltip.callbacks.label = c => c.parsed.y == null ? null : ` ${c.dataset.label}: ${usd(c.parsed.y)}`;
+  upsert('ch-btc', { type: 'line', data: { labels: L, datasets: [
+    { label: 'BTC', data: btc.prices, borderColor: '#eb6834', backgroundColor: '#eb6834', borderWidth: 2, pointRadius: 0, tension: 0.15 },
+    { label: 'Buy', data: buys, showLine: false, pointStyle: 'triangle', pointRadius: 9, pointBackgroundColor: ink, pointBorderColor: css('--card'), pointBorderWidth: 2 },
+    { label: 'Sell', data: sells, showLine: false, pointStyle: 'triangle', rotation: 180, pointRadius: 9, pointBackgroundColor: css('--card'), pointBorderColor: ink, pointBorderWidth: 2 } ] }, options: opts });
+}
+
+function drawShadow(sh) {
+  const sets = Object.keys(sh.series).map(k => ({ label: NAMES[k] || k, data: sh.series[k], borderColor: COLORS[k], backgroundColor: COLORS[k],
+    borderWidth: 2, pointRadius: 0, tension: 0.2, spanGaps: true, borderDash: k === 'hold_btc' ? [5, 4] : [] }));
+  const opts = baseOpts(v => usd(v, 0));
+  opts.plugins.tooltip.callbacks.label = c => ` ${c.dataset.label}: ${usd(c.parsed.y)}`;
+  opts.plugins.legend = { display: true, position: 'bottom', labels: { color: css('--muted'), boxWidth: 12 } };
+  const flat = sh.board.filter(r => r.holding.join() === 'cash' && Math.abs(r.equity - 100) < 0.01).length;
+  $('sh-note').textContent = flat > 1 ? `${flat} strategies are in cash at $100, so their lines overlap.` : '';
+  upsert('ch-shadow', { type: 'line', data: { labels: sh.times, datasets: sets }, options: opts });
+}
+
+function friendsLoad() { try { return JSON.parse(localStorage.getItem('friends') || '[]'); } catch (e) { return []; } }
+function friendsSave(f) { try { localStorage.setItem('friends', JSON.stringify(f)); } catch (e) {} }
+function drawFriends() {
+  const rows = friendsLoad().map(f => ({ ...f, me: false }));
+  if (lastEquity != null) rows.push({ name: 'You', bal: lastEquity, me: true });
+  rows.sort((a, b) => b.bal - a.bal);
+  $('friends').querySelector('tbody').innerHTML = rows.length ? rows.map((r, i) =>
+    `<tr class="${r.me ? 'me' : ''}"><td>${i + 1}</td><td>${esc(r.name)}</td>
+     <td>${usd(r.bal)} <span class="${cls(r.bal - 100)}">${pct(r.bal / 100 - 1)}</span></td>
+     <td>${r.me ? '' : `<button class="x" title="Remove" data-name="${esc(r.name)}">✕</button>`}</td></tr>`).join('')
+    : '<tr><td colspan="4" class="sub">Add your friends below</td></tr>';
+  document.querySelectorAll('#friends button.x').forEach(b => b.onclick = () => {
+    friendsSave(friendsLoad().filter(f => f.name !== b.dataset.name)); drawFriends(); });
+}
+$('f-form').addEventListener('submit', e => {
+  e.preventDefault();
+  const name = $('f-name').value.trim(), bal = parseFloat($('f-bal').value.replace(/[$,\s]/g, ''));
+  if (!name) { $('f-err').textContent = 'Enter a name first'; return; }
+  if (!isFinite(bal) || bal < 0) { $('f-err').textContent = 'Enter a balance, e.g. 104.50'; return; }
+  const f = friendsLoad().filter(x => x.name.toLowerCase() !== name.toLowerCase());
+  f.push({ name, bal }); friendsSave(f);
+  $('f-name').value = ''; $('f-bal').value = ''; $('f-err').textContent = '';
+  drawFriends();
+});
+['f-name', 'f-bal'].forEach(id => $(id).addEventListener('input', () => $('f-err').textContent = ''));
+
+const LOCAL = ['localhost', '127.0.0.1'].includes(location.hostname);
+const DATA_URL = LOCAL ? '/api/data' : 'data.json';
+async function load() {
+  try {
+    const d = await (await fetch(DATA_URL + '?t=' + Date.now(), {cache: 'no-store'})).json();
+    const age = d.ts ? (Date.now() / 1000 - d.ts) : 0;
+    const limit = d.cloud ? 2 * 3600 : 180;
+    const ago = age < 3600 ? `${Math.round(age / 60)} min ago` : `${(age / 3600).toFixed(1)} h ago`;
+    $('upd').textContent = d.cloud ? `${d.updated || '…'} Bangkok (${ago})${age > limit ? ' · stale' : ''}` : (d.updated || '…') + (age > limit ? ` (stale: ${Math.round(age / 60)} min old)` : '');
+    $('refresh').textContent = d.cloud ? 'updates hourly from the cloud' : 'refreshes every 30 s';
+    $('dot').style.background = (d.error || age > limit) ? 'var(--bad)' : 'var(--good)';
+    $('err').textContent = d.error ? 'Data hiccup (showing last good numbers): ' + d.error : '';
+
+    const c = d.competition, m = d.comp_meta || {};
+    if (c) {
+      lastEquity = c.equity;
+      $('c-eq').textContent = usd(c.equity);
+      $('c-pl').innerHTML = `<span class="${cls(m.pl)}">${m.pl >= 0 ? '+' : '−'}${usd(Math.abs(m.pl))} (${pct(m.pl_pct)})</span> <span class="sub">since the $100 start</span>`;
+      const pos = c.positions.find(p => p.symbol === 'BTCUSD');
+      $('c-kv').innerHTML = pos ? `
+        <div class="kv"><span>Holding</span><span>${pos.qty.toFixed(6)} BTC · ${usd(pos.value)}</span></div>
+        <div class="kv"><span>Bought at</span><span>${usd(m.entry, 0)}</span></div>
+        <div class="kv"><span>Bitcoin now</span><span>${usd(d.prices['BTC/USD'], 0)} <span class="${cls(m.btc_vs_entry)}">${pct(m.btc_vs_entry)}</span></span></div>
+        <div class="kv"><span>Cash</span><span>${usd(c.cash)}</span></div>`
+        : `<div class="kv"><span>Holding</span><span>cash ${usd(c.cash)}</span></div>`;
+      $('c-cd').textContent = `⏳ ${m.days_left} days ${m.hours_left} h left · ends ${m.end}` + (c.source ? ' · value = holding × live price' : '');
+      drawCompetition(m);
+    }
+    if (d.btc && d.btc.labels.length) drawBTC(d.btc, m.trades);
+
+    const tb = d.trend4h;
+    $('tb-row').style.display = tb ? '' : 'none';
+    if (tb) {
+      const inn = tb.signal === 'in', out = tb.signal === 'out';
+      $('tb-sig').innerHTML = inn ? '<span class="pos">IN · holding Bitcoin</span>' : out ? '<span class="neg">OUT · waiting in cash</span>' : 'Inside the band · keeps its position';
+      $('tb-sub').textContent = 'Holds BTC while it is 1%+ above its 200-candle (≈33-day) average, sells 1%+ below. Checks every 4 hours.';
+      $('tb-kv').innerHTML = `
+        <div class="kv"><span>BTC vs its average</span><span class="${cls(tb.gap_pct)}">${pct(tb.gap_pct)}</span></div>
+        <div class="kv"><span>${inn ? 'Sells below' : 'Buys above'}</span><span>${usd(tb.ema ? tb.ema * (inn ? 0.99 : 1.01) : null, 0)}</span></div>
+        <div class="kv"><span>Last check</span><span>${esc(tb.checked || '–')}</span></div>
+        <div class="kv"><span>Next check</span><span>${esc(tb.next)} (in ${Math.floor(tb.next_min / 60)} h ${tb.next_min % 60} min)</span></div>`;
+      const cp = (c && c.positions.find(p => p.symbol === 'BTCUSD'));
+      $('tb-c').textContent = c ? (cp ? `Holding BTC · ${usd(c.equity)}` : `In cash · ${usd(c.equity)}`) : '–';
+      $('tb-csub').textContent = `${tb.competition.trades || 0} bot trade${tb.competition.trades === 1 ? "" : "s"} since ${tb.competition.started || '–'} · ${tb.competition.errors || 0} errors`;
+      $('tb-p').innerHTML = `${usd(tb.practice.value)} <span class="${cls(tb.practice.value - 100)}">${pct(tb.practice.value / 100 - 1)}</span>`;
+      $('tb-psub').textContent = `${tb.practice.holding} · ${tb.practice.trades} trades · ${tb.practice.errors} errors · since ${tb.practice.started || '–'}`;
+      const g = tb.gold;
+      if (g) {
+        $('tb-g').innerHTML = `${usd(g.value)} <span class="${cls(g.value - 100)}">${pct(g.value / 100 - 1)}</span>`;
+        $('tb-gsub').textContent = `${g.signal === 'in' ? 'IN' : g.signal === 'out' ? 'OUT' : 'in band'} · GLD ${pct(g.gap_pct)} vs its average · ${g.holding} · ${g.trades} trades · US hours only`;
+      }
+    }
+
+    const H = d.health || [];
+    $('health').innerHTML = H.map(h => `<div class="check"><div class="badge ${h.ok ? 'ok' : 'no'}">${h.ok ? '✓' : '!'}</div>
+      <div><b>${esc(h.name)}</b><small>${esc(h.detail)}</small></div></div>`).join('');
+    const danger = H.find(h => !h.ok && h.name.startsWith('Competition bot'));
+    $('alert').style.display = danger ? 'block' : 'none';
+    $('alert').textContent = danger ? '⚠️ The competition bot is active again and could sell your Bitcoin. Ask Claude to lock it.' : '';
+
+    const sh = d.shadow;
+    if (sh && sh.board.length) {
+      $('board').querySelector('tbody').innerHTML = sh.board.map((r, i) =>
+        `<tr><td>${i + 1}</td><td><span class="swatch" style="background:${COLORS[r.name] || '#999'}"></span>${NAMES[r.name] || r.name}</td>
+         <td>${usd(r.equity)} <span class="${cls(r.equity - 100)}">${pct(r.equity / 100 - 1)}</span></td>
+         <td>${r.trades}</td><td>${r.holding.join(', ')}</td></tr>`).join('');
+      if (sh.times.length) drawShadow(sh);
+    }
+    const p = d.practice;
+    if (p) {
+      $('p-eq').innerHTML = `${usd(p.value)} <span class="${cls(p.value - 100)}">${pct(p.value / 100 - 1)}</span>`;
+      $('p-sub').textContent = `${p.holding || 'cash'} · ${p.trades} fills · ${p.errors} errors${p.pending ? ' · order pending' : ''}`;
+    } else { $('p-eq').textContent = 'not started'; $('p-sub').textContent = ''; }
+    if (d.next) $('next').innerHTML = `<div class="kv"><span>Next lab run</span><span>${d.next.hourly} (in ${d.next.hourly_min} min)</span></div>
+      <div class="kv"><span>Practice rule</span><span>buys a coin up 5%+ in 24 h</span></div>`;
+    const sm = d.stock_memory;
+    if (sm) {
+      $('sm-pos').textContent = sm.positions.length ? `${sm.positions.length} position${sm.positions.length > 1 ? 's' : ''}: ${sm.positions.join(', ')}` : 'No positions';
+      $('sm-sub').textContent = sm.positions.length ? `${usd(sm.per_trade, 0)} each` : 'Waiting for a 20/50-day cross on its 9 stocks';
+      $('sm-kv').innerHTML = `
+        <div class="kv"><span>Live trades so far</span><span>${sm.live}${sm.live ? ` (${sm.live_wins} wins)` : ''}</span></div>
+        <div class="kv"><span>Memory</span><span>${sm.seeded} backtest lessons</span></div>
+        <div class="kv"><span>Skipped trades it's watching</span><span>${sm.shadows}</span></div>
+        <div class="kv"><span>Last run</span><span>${esc(sm.last_run || '–')}</span></div>
+        <div class="kv"><span>Next run</span><span>weekdays 20:35 / 21:35</span></div>`;
+      $('sm-trend').innerHTML = (sm.trend.match(/[A-Z]+[↑↓]/g) || []).map(t =>
+        `<span class="chip ${t.endsWith('↑') ? 'up' : 'down'}">${t.slice(0, -1)} ${t.endsWith('↑') ? '▲' : '▼'}</span>`).join('') || '<span class="sub">No trend data yet</span>';
+      $('sm-lesson').textContent = sm.lesson || 'No lessons yet';
+      $('sm-log').textContent = d.public ? 'Logs are not shown on the public page' : ((sm.log || []).slice().reverse().join('\n') || 'No runs yet');
+    }
+    const g = d.gold;
+    if (g) {
+      const s = g.signal || {}, sh = g.shadow || {};
+      $('g-eq').innerHTML = `${usd(g.value)} <span class="${cls(g.value - 1000)}">${pct(g.value / 1000 - 1)}</span>`;
+      $('g-sub').textContent = (g.paused ? 'PAUSED · ' : '') + (g.position === 'cash' ? 'In cash, waiting for a signal'
+        : `${g.position} ${g.shares} GLD @ ${usd(g.entry)} · stop ${usd(g.stop)}`);
+      $('g-kv').innerHTML = `
+        <div class="kv"><span>Last 1H bar</span><span>${esc(s.bar || '–')}</span></div>
+        <div class="kv"><span>GLD · Heikin Ashi</span><span>${usd(s.price)} · ${esc(s.ha || '–')}</span></div>
+        <div class="kv"><span>Daily trend</span><span>${esc(s.trend || '–')}</span></div>
+        <div class="kv"><span>Signal</span><span>${esc(s.signal || '–')}</span></div>
+        <div class="kv"><span>Trades</span><span>${g.trades} (${g.wins} wins) · ${g.errors} errors</span></div>
+        <div class="kv"><span>Checks</span><span>:33 past each US-market hour</span></div>`;
+      const rows = [['Live bot (paper orders)', g.value, g.trades], ['Backtest replay, same rules', (sh.ha_backtest || {}).value, (sh.ha_backtest || {}).trades],
+                    ['Liquidity sweep (shadow)', (sh.liq_sweep || {}).value, (sh.liq_sweep || {}).trades], ['Just holding GLD', sh.hold_gld, '–']];
+      document.querySelector('#g-board tbody').innerHTML = rows.map(r =>
+        `<tr><td>${r[0]}</td><td class="${cls((r[1] || 1000) - 1000)}">${usd(r[1])}</td><td>${r[2] ?? 0}</td></tr>`).join('');
+      $('g-log').textContent = d.public ? 'Logs are not shown on the public page' : ((g.log || []).slice().reverse().join('\n') || 'No runs yet');
+    } else { $('g-eq').textContent = 'not started'; }
+    const logs = d.logs || {};
+    $('log-c').textContent = d.public ? 'Logs are not shown on the public page' : ((logs.competition || []).slice().reverse().join('\n') || 'No entries yet');
+    $('log-p').textContent = d.public ? 'Logs are not shown on the public page' : ((logs.practice || []).slice().reverse().join('\n') || 'No runs yet');
+    drawFriends();
+  } catch (e) {
+    $('err').textContent = 'Dashboard server not reachable. Is dashboard.py running?';
+    $('dot').style.background = 'var(--bad)';
+  }
+}
+drawFriends();
+load();
+setInterval(load, LOCAL ? 30000 : 300000);
+</script>
+</body>
+</html>
